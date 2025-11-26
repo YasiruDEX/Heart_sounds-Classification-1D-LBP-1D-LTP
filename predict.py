@@ -52,8 +52,8 @@ def setup_inference():
     print("Setting up inference components...")
     print("Loading training data to extract feature indices and scaler...")
     
-    # Load full dataset with feature selection
-    X, y, selected_indices = load_dataset(augment=False, use_feature_selection=True)
+    # Load full dataset with feature selection AND augmentation (same as training)
+    X, y, selected_indices = load_dataset(augment=True, use_feature_selection=True)
     
     # Fit scaler on full dataset
     scaler = StandardScaler()
@@ -173,7 +173,7 @@ def predict_audio_file(model, audio_path, scaler, feature_indices):
     return predicted_class, confidence, probabilities
 
 
-def predict_batch(model, audio_paths, scaler=None, feature_indices=None):
+def predict_batch(model, audio_paths, scaler, feature_indices):
     """
     Make predictions for multiple audio files
     
@@ -216,13 +216,16 @@ def main():
 Examples:
   python predict.py audio.wav
   python predict.py audio.wav --model-path models/best_model.keras
-  python predict.py PASCAL/Atraining_normal/Aunlabelledtest__00017.wav
+  python predict.py PASCAL/Atraining_normal/201101070538.wav
+  python predict.py --setup  # Run once after training
         """
     )
     
     parser.add_argument(
         'audio_file',
         type=str,
+        nargs='?',
+        default=None,
         help='Path to audio file (.wav)'
     )
     
@@ -233,7 +236,24 @@ Examples:
         help='Path to trained model (default: models/best_model.keras)'
     )
     
+    parser.add_argument(
+        '--setup',
+        action='store_true',
+        help='Run setup to save scaler and feature indices (run once after training)'
+    )
+    
     args = parser.parse_args()
+    
+    # Handle setup
+    if args.setup:
+        setup_inference()
+        return 0
+    
+    # Check if audio file provided
+    if args.audio_file is None:
+        parser.print_help()
+        print("\n❌ Error: Please provide an audio file or use --setup")
+        return 1
     
     # Check if file exists
     if not os.path.exists(args.audio_file):
@@ -242,7 +262,7 @@ Examples:
     
     # Load model and preprocessing components
     try:
-        model, scaler, feature_indices = load_model_and_scaler(args.model_path)
+        model, scaler, feature_indices = load_model_and_components(args.model_path)
     except FileNotFoundError as e:
         print(f"Error: {e}")
         return 1

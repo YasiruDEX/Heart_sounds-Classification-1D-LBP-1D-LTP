@@ -192,6 +192,8 @@ def train_with_kfold(model_type='paper', epochs=EPOCHS, batch_size=BATCH_SIZE,
     Returns:
         Best model and metrics
     """
+    import pickle
+    
     set_seeds()
     
     print("="*60)
@@ -206,11 +208,26 @@ def train_with_kfold(model_type='paper', epochs=EPOCHS, batch_size=BATCH_SIZE,
     
     # Load and prepare data
     print("\n[1/3] Extracting 1D-LBP and 1D-LTP features...")
-    X, y, _ = load_dataset(augment=True)  # Enable augmentation
+    X, y, selected_indices = load_dataset(augment=True)  # Enable augmentation
     
     print(f"\nDataset shape: {X.shape}")
     print(f"Labels shape: {y.shape}")
     print(f"Class distribution: {np.bincount(y)}")
+    
+    # Save feature indices for inference
+    if selected_indices is not None:
+        indices_path = os.path.join(MODEL_SAVE_PATH, 'feature_indices.pkl')
+        with open(indices_path, 'wb') as f:
+            pickle.dump(selected_indices, f)
+        print(f"Saved {len(selected_indices)} feature indices to {indices_path}")
+    
+    # Fit and save scaler on full dataset
+    full_scaler = StandardScaler()
+    full_scaler.fit(X)
+    scaler_path = os.path.join(MODEL_SAVE_PATH, 'scaler.pkl')
+    with open(scaler_path, 'wb') as f:
+        pickle.dump(full_scaler, f)
+    print(f"Saved scaler to {scaler_path}")
     
     # Initialize k-fold
     skf = StratifiedKFold(n_splits=k_folds, shuffle=True, random_state=RANDOM_SEED)
